@@ -1,6 +1,10 @@
 const express = require('express');
 const mp = require('../services/mercadoPago');
-const { parseReleaseReport } = require('../services/reportParser');
+const {
+  parseReleaseReport,
+  filterRows,
+  summarizeReleaseReport,
+} = require('../services/reportParser');
 
 const router = express.Router();
 
@@ -38,6 +42,8 @@ router.get('/config', async (req, res, next) => {
 });
 
 // Descarga un reporte. Con ?format=csv devuelve el CSV crudo; si no, JSON parseado.
+// Filtros opcionales: ?recordType=... y ?paymentMethod=...
+// La respuesta JSON incluye totales y conteo por tipo de registro.
 router.get('/:fileName', async (req, res, next) => {
   try {
     const csv = await mp.downloadReleaseReport(req.params.fileName);
@@ -45,7 +51,17 @@ router.get('/:fileName', async (req, res, next) => {
       res.type('text/csv').send(csv);
       return;
     }
-    res.json(parseReleaseReport(csv));
+    const parsed = parseReleaseReport(csv);
+    const rows = filterRows(parsed.rows, {
+      recordType: req.query.recordType,
+      paymentMethod: req.query.paymentMethod,
+    });
+    res.json({
+      headers: parsed.headers,
+      summary: summarizeReleaseReport(rows),
+      count: rows.length,
+      rows,
+    });
   } catch (err) {
     next(err);
   }

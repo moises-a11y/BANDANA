@@ -77,4 +77,74 @@ function parseReleaseReport(csv) {
   return { count: rows.length, headers, rows };
 }
 
-module.exports = { parseReleaseReport, COLUMN_MAP };
+// Columnas de monto sobre las que se calculan los totales.
+const AMOUNT_KEYS = [
+  'montoNetoAcreditado',
+  'montoNetoDebitado',
+  'montoBrutoOperacion',
+  'comisionMercadoPago',
+  'comisionCuotasSinInteres',
+  'costoDeEnvio',
+  'impuestosRetencionesIIBB',
+  'cuponDeDescuento',
+  'saldo',
+];
+
+// Convierte un importe en texto a número, tolerando separadores de miles
+// y coma o punto como separador decimal.
+function toNumber(value) {
+  if (value === undefined || value === null || value === '') return 0;
+  let text = String(value).trim();
+  const lastComma = text.lastIndexOf(',');
+  const lastDot = text.lastIndexOf('.');
+  if (lastComma > lastDot) {
+    text = text.replace(/\./g, '').replace(',', '.');
+  } else {
+    text = text.replace(/,/g, '');
+  }
+  const number = Number(text);
+  return Number.isFinite(number) ? number : 0;
+}
+
+// Filtra filas por tipo de registro y/o medio de pago (sin distinguir mayúsculas).
+function filterRows(rows, { recordType, paymentMethod } = {}) {
+  return rows.filter((row) => {
+    if (recordType && String(row.tipoDeRegistro || '').toLowerCase() !== recordType.toLowerCase()) {
+      return false;
+    }
+    if (paymentMethod
+      && String(row.medioDePago || '').toLowerCase() !== paymentMethod.toLowerCase()) {
+      return false;
+    }
+    return true;
+  });
+}
+
+// Calcula los totales de cada columna de monto y el conteo por tipo de registro.
+function summarizeReleaseReport(rows) {
+  const totales = {};
+  AMOUNT_KEYS.forEach((key) => { totales[key] = 0; });
+
+  const porTipoDeRegistro = {};
+
+  rows.forEach((row) => {
+    AMOUNT_KEYS.forEach((key) => {
+      totales[key] += toNumber(row[key]);
+    });
+    const tipo = row.tipoDeRegistro || 'sin_tipo';
+    porTipoDeRegistro[tipo] = (porTipoDeRegistro[tipo] || 0) + 1;
+  });
+
+  AMOUNT_KEYS.forEach((key) => {
+    totales[key] = Number(totales[key].toFixed(2));
+  });
+
+  return { cantidadDeRegistros: rows.length, totales, porTipoDeRegistro };
+}
+
+module.exports = {
+  parseReleaseReport,
+  filterRows,
+  summarizeReleaseReport,
+  COLUMN_MAP,
+};
