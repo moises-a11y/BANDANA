@@ -1,0 +1,17 @@
+{
+  "name": "bandana",
+  "version": "1.0.0",
+  "description": "Integración con la API de Reportes de Liberación de dinero de Mercado Pago",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
